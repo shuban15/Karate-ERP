@@ -64,11 +64,11 @@
     const db = getFirestore(app);
 
     document.getElementById('addBtn').onclick = async () => {
-        const name = document.getElementById('sName').value;
-        const age = document.getElementById('sAge').value;
-        const phone = document.getElementById('sPhone').value;
-        const dob = document.getElementById('sDob').value;
-        const belt = document.getElementById('sBelt').value;
+        const name = document.getElementById('sName').value || null;
+        const age = document.getElementById('sAge').value || null;
+        const phone = document.getElementById('sPhone').value || null;
+        const dob = document.getElementById('sDob').value || null;
+        const belt = document.getElementById('sBelt').value || null;
         if(name && age) {
             await addDoc(collection(db, "students"), { name, age, phone, dob, belt, createdAt: serverTimestamp() });
             document.getElementById('sName').value = '';
