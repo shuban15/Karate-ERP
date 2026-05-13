@@ -112,7 +112,11 @@
     function updateUI() {
         const tbody = document.getElementById('studentListBody');
         tbody.innerHTML = '';
-        students.forEach(s => {
+        const beltOrder = ['White', 'Yellow', 'Orange', 'Green', 'Blue', 'Purple', 'Brown', 'Black'];
+        const sortedStudents = [...students].sort((a, b) => {
+            return beltOrder.indexOf(a.belt) - beltOrder.indexOf(b.belt);
+        });
+        sortedStudents.forEach(s => {
             const isPaid = payments.some(p => p.studentId === s.id);
             tbody.innerHTML += `<tr>
                 <td>${s.name}</td>
