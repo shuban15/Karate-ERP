@@ -41,7 +41,7 @@
             <option value="Brown">Brown</option>
             <option value="Black">Black</option>
         </select>
-        <button id="addBtn">Add Student</button>
+        <button id="addBtn" type="button">Add Student</button>
     </div>
 </div>
 
@@ -64,17 +64,35 @@
     const db = getFirestore(app);
 
     document.getElementById('addBtn').onclick = async () => {
-        const name = document.getElementById('sName').value;
+        const name = document.getElementById('sName').value || null;
         const age = document.getElementById('sAge').value || null;
         const phone = document.getElementById('sPhone').value || null;
         const dob = document.getElementById('sDob').value || null;
-        const belt = document.getElementById('sBelt').value;
-        if(name && age) {
-            await addDoc(collection(db, "students"), { name, age, phone, dob, belt, createdAt: serverTimestamp() });
+        const belt = document.getElementById('sBelt').value || null;
+
+        if (!name || !age) {
+            alert('Please enter both name and age before adding the student.');
+            return;
+        }
+
+        try {
+            await addDoc(collection(db, "students"), {
+                name,
+                age,
+                phone,
+                dob,
+                belt,
+                createdAt: serverTimestamp()
+            });
+            alert('Student added successfully.');
             document.getElementById('sName').value = '';
             document.getElementById('sAge').value = '';
             document.getElementById('sPhone').value = '';
             document.getElementById('sDob').value = '';
+            document.getElementById('sBelt').value = 'White';
+        } catch (error) {
+            console.error('Add student failed:', error);
+            alert('Could not add student. Check the console for details.');
         }
     };
 </script>
