@@ -113,7 +113,11 @@
     function updateUI() {
         const tbody = document.getElementById('studentListBody');
         tbody.innerHTML = '';
-        students.forEach(s => {
+        const beltOrder = ['White', 'Yellow', 'Orange', 'Green', 'Blue', 'Purple', 'Brown', 'Black'];
+        const sortedStudents = [...students].sort((a, b) => {
+            return beltOrder.indexOf(a.belt) - beltOrder.indexOf(b.belt);
+        });
+        sortedStudents.forEach(s => {
             tbody.innerHTML += `<tr>
                 <td><a href="#" onclick="showDetails('${s.id}')">${s.name}</a></td>
                 <td>${s.age}</td>
