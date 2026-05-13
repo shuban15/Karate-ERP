@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karate ERP - Add Student</title>
+    <style>
+        :root { --primary: #3b82f6; --secondary: #06b6d4; --dark: #1e293b; --light: #f1f5f9; --accent: #f59e0b; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; margin: 0; }
+        .container { max-width: 900px; margin: auto; background: rgba(255,255,255,0.95); padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); backdrop-filter: blur(10px); }
+        h2 { border-bottom: 3px solid var(--primary); padding-bottom: 15px; color: var(--dark); font-size: 2em; text-align: center; margin-bottom: 30px; }
+        .nav { margin-bottom: 20px; text-align: center; }
+        button { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; background: var(--primary); color: white; font-weight: bold; margin-right: 10px; transition: all 0.3s ease; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        button:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.2); }
+        .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        input, select { padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; transition: border-color 0.3s ease; }
+        input:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 5px rgba(59, 130, 246, 0.5); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Karate Class ERP - Add Student</h2>
+    <div class="nav">
+        <button onclick="window.location='fees.html'">Fees</button>
+        <button onclick="window.location='index.html'">Students</button>
+    </div>
+
+    <div class="grid-form">
+        <input type="text" id="sName" placeholder="Student Name">
+        <input type="number" id="sAge" placeholder="Age">
+        <input type="text" id="sPhone" placeholder="Phone Number">
+        <input type="date" id="sDob" placeholder="Date of Birth">
+        <select id="sBelt">
+            <option value="White" selected>White</option>
+            <option value="Yellow">Yellow</option>
+            <option value="Orange">Orange</option>
+            <option value="Green">Green</option>
+            <option value="Blue">Blue</option>
+            <option value="Purple">Purple</option>
+            <option value="Brown">Brown</option>
+            <option value="Black">Black</option>
+        </select>
+        <button id="addBtn">Add Student</button>
+    </div>
+</div>
+
+<!-- Firebase SDKs -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCUxp8HM1zzMc4QhbTRlCf7IE-wfgrsRj8",
+        authDomain: "karate-erp.firebaseapp.com",
+        projectId: "karate-erp",
+        storageBucket: "karate-erp.firebasestorage.app",
+        messagingSenderId: "331828306445",
+        appId: "1:331828306445:web:c261e315d831d04ebf6b44",
+        measurementId: "G-FS8YT8J1VD"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    document.getElementById('addBtn').onclick = async () => {
+        const name = document.getElementById('sName').value;
+        const age = document.getElementById('sAge').value;
+        const phone = document.getElementById('sPhone').value;
+        const dob = document.getElementById('sDob').value;
+        const belt = document.getElementById('sBelt').value;
+        if(name && age) {
+            await addDoc(collection(db, "students"), { name, age, phone, dob, belt, createdAt: serverTimestamp() });
+            document.getElementById('sName').value = '';
+            document.getElementById('sAge').value = '';
+            document.getElementById('sPhone').value = '';
+            document.getElementById('sDob').value = '';
+        }
+    };
+</script>
+</body>
+</html>

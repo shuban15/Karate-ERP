@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karate ERP - Students</title>
+    <style>
+        :root { --primary: #3b82f6; --secondary: #06b6d4; --dark: #1e293b; --light: #f1f5f9; --accent: #f59e0b; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; margin: 0; }
+        .container { max-width: 900px; margin: auto; background: rgba(255,255,255,0.95); padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); backdrop-filter: blur(10px); }
+        h2 { border-bottom: 3px solid var(--primary); padding-bottom: 15px; color: var(--dark); font-size: 2em; text-align: center; margin-bottom: 30px; }
+        .nav { margin-bottom: 20px; text-align: center; }
+        button { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; background: var(--primary); color: white; font-weight: bold; margin-right: 10px; transition: all 0.3s ease; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        button:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.2); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        th, td { text-align: left; padding: 15px; border-bottom: 1px solid #eee; }
+        th { background: var(--primary); color: white; font-weight: bold; }
+        #studentTable a { color: #000000; text-decoration: none; }
+        #studentTable a:hover { color: #000000; text-decoration: none; }
+        #detailsModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal-content { background: rgba(255,255,255,0.95); padding: 40px; border-radius: 20px; text-align: center; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); backdrop-filter: blur(10px); }
+        .delete-btn { background: #dc2626; }
+        .edit-btn { background: #059669; margin-right: 10px; }
+        input[type="text"], input[type="number"], input[type="date"], select { width: 100%; padding: 10px; margin: 8px 0; border: 2px solid #ddd; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
+        input:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 5px rgba(59, 130, 246, 0.5); }
+        .modal-buttons { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+        .modal-buttons button { margin: 0; flex: 1; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Karate Class ERP - Students</h2>
+    <div class="nav">
+        <button onclick="window.location='fees.html'">Fees</button>
+        <button onclick="window.location='add-student.html'">Add Student</button>
+    </div>
+
+    <table id="studentTable">
+        <thead><tr><th>Name</th><th>Age</th><th>Belt</th></tr></thead>
+        <tbody id="studentListBody"></tbody>
+    </table>
+</div>
+
+<div id="detailsModal">
+    <div class="modal-content">
+        <h4 id="modalTitle">Student Details</h4>
+        
+        <!-- View Mode -->
+        <div id="viewMode">
+            <p><strong>Name:</strong> <span id="detailName"></span></p>
+            <p><strong>Age:</strong> <span id="detailAge"></span></p>
+            <p><strong>DOB:</strong> <span id="detailDob"></span></p>
+            <p><strong>Phone:</strong> <span id="detailPhone"></span></p>
+            <p><strong>Belt:</strong> <span id="detailBelt"></span></p>
+            <div class="modal-buttons">
+                <button onclick="enableEditMode()" class="edit-btn">Edit</button>
+                <button onclick="deleteStudent()" class="delete-btn">Delete</button>
+                <button onclick="closeModal()">Close</button>
+            </div>
+        </div>
+
+        <!-- Edit Mode -->
+        <div id="editMode" style="display: none;">
+            <input type="text" id="editName" placeholder="Name">
+            <input type="number" id="editAge" placeholder="Age">
+            <input type="date" id="editDob" placeholder="DOB">
+            <input type="text" id="editPhone" placeholder="Phone">
+            <select id="editBelt">
+                <option value="White">White</option>
+                <option value="Yellow">Yellow</option>
+                <option value="Orange">Orange</option>
+                <option value="Green">Green</option>
+                <option value="Blue">Blue</option>
+                <option value="Purple">Purple</option>
+                <option value="Brown">Brown</option>
+                <option value="Black">Black</option>
+            </select>
+            <div class="modal-buttons">
+                <button onclick="saveChanges()" style="background: #059669;">Save</button>
+                <button onclick="disableEditMode()">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Firebase SDKs -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, onSnapshot, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCUxp8HM1zzMc4QhbTRlCf7IE-wfgrsRj8",
+        authDomain: "karate-erp.firebaseapp.com",
+        projectId: "karate-erp",
+        storageBucket: "karate-erp.firebasestorage.app",
+        messagingSenderId: "331828306445",
+        appId: "1:331828306445:web:c261e315d831d04ebf6b44",
+        measurementId: "G-FS8YT8J1VD"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let students = [];
+    let currentStudentId = null;
+
+    onSnapshot(collection(db, "students"), (snapshot) => {
+        students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        updateUI();
+    });
+
+    function updateUI() {
+        const tbody = document.getElementById('studentListBody');
+        tbody.innerHTML = '';
+        students.forEach(s => {
+            tbody.innerHTML += `<tr>
+                <td><a href="#" onclick="showDetails('${s.id}')">${s.name}</a></td>
+                <td>${s.age}</td>
+                <td>${s.belt}</td>
+            </tr>`;
+        });
+    }
+
+    window.showDetails = (id) => {
+        const student = students.find(s => s.id === id);
+        if (student) {
+            document.getElementById('detailName').innerText = student.name;
+            document.getElementById('detailAge').innerText = student.age;
+            document.getElementById('detailDob').innerText = student.dob || 'N/A';
+            document.getElementById('detailPhone').innerText = student.phone || 'N/A';
+            document.getElementById('detailBelt').innerText = student.belt;
+            currentStudentId = id;
+            document.getElementById('detailsModal').style.display = 'flex';
+        }
+    };
+
+    window.closeModal = () => {
+        document.getElementById('detailsModal').style.display = 'none';
+        currentStudentId = null;
+    };
+
+    window.deleteStudent = async () => {
+        if (currentStudentId) {
+            await deleteDoc(doc(db, "students", currentStudentId));
+            closeModal();
+        }
+    };
+
+    window.enableEditMode = () => {
+        const student = students.find(s => s.id === currentStudentId);
+        if (student) {
+            document.getElementById('editName').value = student.name;
+            document.getElementById('editAge').value = student.age;
+            document.getElementById('editDob').value = student.dob || '';
+            document.getElementById('editPhone').value = student.phone || '';
+            document.getElementById('editBelt').value = student.belt;
+            document.getElementById('viewMode').style.display = 'none';
+            document.getElementById('editMode').style.display = 'block';
+        }
+    };
+
+    window.disableEditMode = () => {
+        document.getElementById('editMode').style.display = 'none';
+        document.getElementById('viewMode').style.display = 'block';
+    };
+
+    window.saveChanges = async () => {
+        if (currentStudentId) {
+            const name = document.getElementById('editName').value;
+            const age = document.getElementById('editAge').value;
+            const dob = document.getElementById('editDob').value;
+            const phone = document.getElementById('editPhone').value;
+            const belt = document.getElementById('editBelt').value;
+            
+            if (name && age) {
+                await updateDoc(doc(db, "students", currentStudentId), {
+                    name: name,
+                    age: age,
+                    dob: dob,
+                    phone: phone,
+                    belt: belt
+                });
+                disableEditMode();
+            }
+        }
+    };
+</script>
+</body>
+</html>

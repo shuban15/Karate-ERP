@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karate ERP - Fees</title>
+    <style>
+        :root { --primary: #3b82f6; --secondary: #06b6d4; --dark: #1e293b; --light: #f1f5f9; --accent: #f59e0b; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; margin: 0; }
+        .container { max-width: 900px; margin: auto; background: rgba(255,255,255,0.95); padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); backdrop-filter: blur(10px); }
+        h2 { border-bottom: 3px solid var(--primary); padding-bottom: 15px; color: var(--dark); font-size: 2em; text-align: center; margin-bottom: 30px; }
+        .nav { margin-bottom: 20px; text-align: center; }
+        button { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; background: var(--primary); color: white; font-weight: bold; margin-right: 10px; transition: all 0.3s ease; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        button:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.2); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        th, td { text-align: left; padding: 15px; border-bottom: 1px solid #eee; }
+        th { background: var(--primary); color: white; font-weight: bold; }
+        #accountsTable th, #accountsTable td { padding: 12px; }
+        #paymentModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 8px; text-align: center; }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Karate Class ERP - Fees</h2>
+
+    <div class="nav">
+        <button onclick="window.location='index.html'">Students</button>
+        <button onclick="window.location='add-student.html'">Add Student</button>
+    </div>
+
+    <h3>Month: <span id="currentMonthDisplay"></span></h3>
+    <table id="studentTable">
+        <thead><tr><th>Name</th><th>Belt</th><th>Action</th></tr></thead>
+        <tbody id="studentListBody"></tbody>
+    </table>
+
+    <button onclick="toggleAccounts()" style="margin-top:30px;">Consolidated</button>
+    <button onclick="showPending()" style="margin-top:30px; margin-left: 10px;">Pending</button>
+
+    <div id="consolidatedSheet" style="display: none; margin-top: 30px; padding: 30px; background: rgba(255,255,255,0.9); border-radius: 15px; box-shadow: 0 6px 15px rgba(0,0,0,0.1);">
+        <h3 style="color: var(--dark); margin-bottom: 20px;">Accounts Summary</h3>
+        <table id="accountsTable" style="margin-bottom: 20px;">
+            <thead><tr><th>Name</th><th>Method</th><th>Amount</th></tr></thead>
+            <tbody id="accountsListBody"></tbody>
+        </table>
+        <p style="font-size: 18px; font-weight: bold;"><b>Cash:</b> ₹<span id="cashTotal">0</span> | <b>Online:</b> ₹<span id="onlineTotal">0</span></p>
+        <p style="font-size: 20px; font-weight: bold; color: var(--primary);"><b>Grand Total:</b> ₹<span id="grandTotal">0</span></p>
+    </div>
+
+    <div id="pendingSheet" style="display: none; margin-top: 30px; padding: 30px; background: rgba(255,245,157,0.3); border-radius: 15px; box-shadow: 0 6px 15px rgba(0,0,0,0.1); border: 2px solid #f59e0b;">
+        <h3 style="color: var(--dark); margin-bottom: 20px;">Pending Payments</h3>
+        <table id="pendingTable" style="margin-bottom: 20px;">
+            <thead><tr><th>Student Name</th><th>Belt</th></tr></thead>
+            <tbody id="pendingListBody"></tbody>
+        </table>
+        <p style="font-size: 16px; font-weight: bold; color: #dc2626;">Total Pending: <span id="pendingCount">0</span> students</p>
+    </div>
+
+
+</div>
+
+<div id="paymentModal">
+    <div class="modal-content">
+        <h4>Payment for <span id="payingStudentName"></span></h4>
+        <button onclick="confirmPayment('Cash')" style="background:#059669;">Cash</button>
+        <button onclick="confirmPayment('Online')" style="background:#2563eb;">Online</button>
+        <button onclick="closeModal()">Cancel</button>
+    </div>
+</div>
+
+<!-- Firebase SDKs -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCUxp8HM1zzMc4QhbTRlCf7IE-wfgrsRj8",
+        authDomain: "karate-erp.firebaseapp.com",
+        projectId: "karate-erp",
+        storageBucket: "karate-erp.firebasestorage.app",
+        messagingSenderId: "331828306445",
+        appId: "1:331828306445:web:c261e315d831d04ebf6b44",
+        measurementId: "G-FS8YT8J1VD"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const monthYear = `${new Date().getMonth() + 1}-${new Date().getFullYear()}`;
+
+    document.getElementById('currentMonthDisplay').innerText = monthYear;
+
+
+
+    // Live Listeners
+    let students = [];
+    let payments = [];
+
+    onSnapshot(collection(db, "students"), (snapshot) => {
+        students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        updateUI();
+    });
+
+    onSnapshot(query(collection(db, "payments"), where("monthYear", "==", monthYear)), (snapshot) => {
+        payments = snapshot.docs.map(doc => doc.data());
+        updateUI();
+        if(document.getElementById('consolidatedSheet').style.display === 'block') renderAccounts();
+    });
+
+    function updateUI() {
+        const tbody = document.getElementById('studentListBody');
+        tbody.innerHTML = '';
+        students.forEach(s => {
+            const isPaid = payments.some(p => p.studentId === s.id);
+            tbody.innerHTML += `<tr>
+                <td>${s.name}</td>
+                <td>${s.belt}</td>
+                <td>${isPaid ? '' : `<button onclick="openModal('${s.id}', '${s.name}')">Pay</button>`}</td>
+            </tr>`;
+        });
+    }
+
+    // Global functions for buttons
+    window.openModal = (id, name) => {
+        window.currentId = id;
+        document.getElementById('payingStudentName').innerText = name;
+        document.getElementById('paymentModal').style.display = 'flex';
+    };
+
+    window.closeModal = () => document.getElementById('paymentModal').style.display = 'none';
+
+    window.confirmPayment = async (method) => {
+        const studentName = document.getElementById('payingStudentName').innerText;
+        await addDoc(collection(db, "payments"), {
+            studentId: window.currentId,
+            name: studentName,
+            method: method,
+            amount: 500,
+            monthYear: monthYear
+        });
+        window.closeModal();
+    };
+
+    window.toggleAccounts = () => {
+        const sheet = document.getElementById('consolidatedSheet');
+        const pending = document.getElementById('pendingSheet');
+        pending.style.display = 'none';
+        sheet.style.display = sheet.style.display === 'none' ? 'block' : 'none';
+        if(sheet.style.display === 'block') renderAccounts();
+    };
+
+    function renderAccounts() {
+        const tbody = document.getElementById('accountsListBody');
+        tbody.innerHTML = '';
+        let cash = 0, online = 0;
+        payments.forEach(p => {
+            if(p.method === 'Cash') cash += p.amount; else online += p.amount;
+            tbody.innerHTML += `<tr><td>${p.name}</td><td>${p.method}</td><td>₹${p.amount}</td></tr>`;
+        });
+        document.getElementById('cashTotal').innerText = cash;
+        document.getElementById('onlineTotal').innerText = online;
+        document.getElementById('grandTotal').innerText = cash + online;
+    }
+
+    window.showPending = () => {
+        const pendingSheet = document.getElementById('pendingSheet');
+        const consolidated = document.getElementById('consolidatedSheet');
+        consolidated.style.display = 'none';
+        pendingSheet.style.display = pendingSheet.style.display === 'none' ? 'block' : 'none';
+        if(pendingSheet.style.display === 'block') renderPending();
+    };
+
+    function renderPending() {
+        const tbody = document.getElementById('pendingListBody');
+        tbody.innerHTML = '';
+        let pendingCount = 0;
+        students.forEach(s => {
+            const isPaid = payments.some(p => p.studentId === s.id);
+            if (!isPaid) {
+                tbody.innerHTML += `<tr><td>${s.name}</td><td>${s.belt}</td></tr>`;
+                pendingCount++;
+            }
+        });
+        document.getElementById('pendingCount').innerText = pendingCount;
+    }
+</script>
+</body>
+</html>
