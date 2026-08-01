@@ -30,6 +30,33 @@
         .badge-online { background: #dbeafe; color: #1d4ed8; }
         .badge-master { background: #fef3c7; color: #b45309; }
         .badge-unpaid { background: #fee2e2; color: #b91c1c; }
+
+        /* Frequent Defaulter Red Badge */
+        .badge-defaulter { 
+            background: #ef4444; 
+            color: white; 
+            font-size: 10px; 
+            font-weight: bold; 
+            padding: 2px 6px; 
+            border-radius: 10px; 
+            margin-left: 8px; 
+            display: inline-block;
+            vertical-align: middle;
+            box-shadow: 0 2px 4px rgba(239, 68, 68, 0.4);
+        }
+
+        /* Filter Dropdown Styling */
+        .filter-select {
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--dark);
+            outline: none;
+            background: white;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -54,12 +81,26 @@
         <button onclick="toggleAccounts()" style="margin-top:30px;">Consolidated</button>
         <button onclick="showPending()" style="margin-top:30px; margin-left: 10px;">Pending</button>
 
+        <!-- Consolidated / Accounts Section -->
         <div id="consolidatedSheet" style="display: none; margin-top: 30px; padding: 30px; background: rgba(255,255,255,0.9); border-radius: 15px; box-shadow: 0 6px 15px rgba(0,0,0,0.1);">
-            <h3 style="color: var(--dark); margin-bottom: 20px;">Accounts Summary</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="color: var(--dark); margin: 0;">Accounts Summary</h3>
+                <div>
+                    <label for="paymentFilter" style="font-weight: bold; margin-right: 8px; font-size: 14px;">Filter Method:</label>
+                    <select id="paymentFilter" class="filter-select" onchange="renderAccounts()">
+                        <option value="All">All</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Online">Online</option>
+                        <option value="Master">Master</option>
+                    </select>
+                </div>
+            </div>
+
             <table id="accountsTable" style="margin-bottom: 20px;">
                 <thead><tr><th>Name</th><th>Method</th><th>Amount</th></tr></thead>
                 <tbody id="accountsListBody"></tbody>
             </table>
+            
             <p style="font-size: 16px; font-weight: bold;">
                 <b>Cash:</b> ₹<span id="cashTotal">0</span> | 
                 <b>Online:</b> ₹<span id="onlineTotal">0</span> | 
@@ -151,10 +192,40 @@
 
     let students = [];
     let payments = [];
+    let defaulterStudentIds = new Set();
+
+    // Helper: Get key for previous N months
+    function getPastMonthKey(monthsAgo) {
+        let d = new Date();
+        d.setMonth(d.getMonth() - monthsAgo);
+        return `${d.getMonth() + 1}-${d.getFullYear()}`;
+    }
+
+    // Check payment history for previous 2 continuous months
+    async function checkDefaulters() {
+        const prevMonth1 = getPastMonthKey(1);
+        const prevMonth2 = getPastMonthKey(2);
+
+        const q1 = query(collection(db, "payments"), where("monthYear", "==", prevMonth1));
+        const q2 = query(collection(db, "payments"), where("monthYear", "==", prevMonth2));
+
+        const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+
+        const paidIdsMonth1 = new Set(snap1.docs.map(doc => doc.data().studentId));
+        const paidIdsMonth2 = new Set(snap2.docs.map(doc => doc.data().studentId));
+
+        defaulterStudentIds.clear();
+        students.forEach(s => {
+            if (!paidIdsMonth1.has(s.id) && !paidIdsMonth2.has(s.id)) {
+                defaulterStudentIds.add(s.id);
+            }
+        });
+    }
 
     // Live Listeners for Current Month
-    onSnapshot(collection(db, "students"), (snapshot) => {
+    onSnapshot(collection(db, "students"), async (snapshot) => {
         students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        await checkDefaulters();
         updateUI();
     });
 
@@ -172,8 +243,12 @@
         
         sortedStudents.forEach(s => {
             const isPaid = payments.some(p => p.studentId === s.id);
+            const isDefaulter = defaulterStudentIds.has(s.id);
+
+            const redBadge = isDefaulter ? `<span class="badge-defaulter">⚠️ 2+ M Unpaid</span>` : '';
+
             tbody.innerHTML += `<tr>
-                <td>${s.name}</td>
+                <td>${s.name}${redBadge}</td>
                 <td>${s.belt}</td>
                 <td>${isPaid ? '' : `<button onclick="openModal('${s.id}', '${s.name}')">Pay</button>`}</td>
             </tr>`;
@@ -209,22 +284,37 @@
         if(sheet.style.display === 'block') renderAccounts();
     };
 
-    function renderAccounts() {
+    // Filtered Consolidated Accounts Renderer
+    window.renderAccounts = () => {
         const tbody = document.getElementById('accountsListBody');
+        const filterVal = document.getElementById('paymentFilter').value;
         tbody.innerHTML = '';
+        
         let cash = 0, online = 0, master = 0;
+
+        // Compute overall totals
         payments.forEach(p => {
             if(p.method === 'Cash') cash += p.amount;
             else if(p.method === 'Online') online += p.amount;
             else if(p.method === 'Master') master += p.amount;
-
-            tbody.innerHTML += `<tr><td>${p.name}</td><td>${p.method}</td><td>₹${p.amount}</td></tr>`;
         });
+
+        // Filter payments to display based on dropdown selection
+        const filteredPayments = payments.filter(p => filterVal === 'All' || p.method === filterVal);
+
+        if (filteredPayments.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #64748b;">No ${filterVal === 'All' ? '' : filterVal} payments recorded.</td></tr>`;
+        } else {
+            filteredPayments.forEach(p => {
+                tbody.innerHTML += `<tr><td>${p.name}</td><td>${p.method}</td><td>₹${p.amount}</td></tr>`;
+            });
+        }
+
         document.getElementById('cashTotal').innerText = cash;
         document.getElementById('onlineTotal').innerText = online;
         document.getElementById('masterTotal').innerText = master;
         document.getElementById('grandTotal').innerText = cash + online + master;
-    }
+    };
 
     window.showPending = () => {
         const pendingSheet = document.getElementById('pendingSheet');
@@ -241,7 +331,9 @@
         students.forEach(s => {
             const isPaid = payments.some(p => p.studentId === s.id);
             if (!isPaid) {
-                tbody.innerHTML += `<tr><td>${s.name}</td><td>${s.belt}</td></tr>`;
+                const isDefaulter = defaulterStudentIds.has(s.id);
+                const redBadge = isDefaulter ? `<span class="badge-defaulter">⚠️ 2+ M Unpaid</span>` : '';
+                tbody.innerHTML += `<tr><td>${s.name}${redBadge}</td><td>${s.belt}</td></tr>`;
                 pendingCount++;
             }
         });
@@ -306,13 +398,11 @@
         const querySnapshot = await getDocs(q);
         const monthPayments = querySnapshot.docs.map(doc => doc.data());
 
-        // Sort Paid: Cash first, Online second, Master third
         const paidCash = monthPayments.filter(p => p.method === 'Cash');
         const paidOnline = monthPayments.filter(p => p.method === 'Online');
         const paidMaster = monthPayments.filter(p => p.method === 'Master');
         const sortedPaid = [...paidCash, ...paidOnline, ...paidMaster];
 
-        // Render Paid Students
         paidBody.innerHTML = '';
         if (sortedPaid.length === 0) {
             paidBody.innerHTML = '<tr><td colspan="3">No payments recorded for this month.</td></tr>';
@@ -330,7 +420,6 @@
             });
         }
 
-        // Render Unpaid Students
         unpaidBody.innerHTML = '';
         const unpaidStudents = students.filter(s => !monthPayments.some(p => p.studentId === s.id));
         
