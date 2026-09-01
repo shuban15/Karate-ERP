@@ -66,6 +66,12 @@
         <button class="save-btn" onclick="saveAttendance()">Save Attendance</button>
     </div>
 </div>
+<!-- Place this at the bottom of your attendance view/container -->
+<div style="margin-top: 20px; text-align: center;">
+  <button id="btnOverallAttendance" onclick="exportAndSendAttendance()" style="background-color: #107c41; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+    📊 Overall Attendance (Current Month Excel)
+  </button>
+</div>
 
 <!-- Firebase SDKs -->
 <script type="module">
@@ -183,6 +189,39 @@
             alert("Failed to save attendance.");
         }
     };
+
+    async function exportAndSendAttendance() {
+  const btn = document.getElementById('btnOverallAttendance');
+  btn.disabled = true;
+  btn.innerText = "Generating Excel & Sending Mail...";
+
+  try {
+    // Replace with your backend endpoint or Firebase Cloud Function URL
+    const response = await fetch('/api/attendance/export-monthly', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        recipientEmail: 'shubanshree@gmail.com'
+      })
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      alert("✅ Monthly attendance Excel report has been successfully sent to shubanshree@gmail.com!");
+    } else {
+      alert("❌ Failed to send email: " + (data.message || "Unknown error"));
+    }
+  } catch (err) {
+    console.error("Error sending request:", err);
+    alert("❌ Network/Server error while generating report.");
+  } finally {
+    btn.disabled = false;
+    btn.innerText = "📊 Overall Attendance (Current Month Excel)";
+  }
+}
 </script>
 </body>
 </html>
