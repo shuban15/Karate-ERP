@@ -6,28 +6,28 @@
     <title>Karate ERP - Attendance</title>
     <style>
         :root { --primary: #3b82f6; --secondary: #06b6d4; --dark: #1e293b; --light: #f1f5f9; --accent: #10b981; }
-        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; margin: 0; }
-        .container { max-width: 900px; margin: auto; background: rgba(255,255,255,0.95); padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); backdrop-filter: blur(10px); }
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; margin: 0; display: flex; align-items: flex-start; justify-content: center; }
+        .container { width: min(100%, 980px); margin: 0 auto; background: rgba(255,255,255,0.95); padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); backdrop-filter: blur(10px); }
         h2 { border-bottom: 3px solid var(--primary); padding-bottom: 15px; color: var(--dark); font-size: 2em; text-align: center; margin-bottom: 20px; }
-        .nav { margin-bottom: 25px; text-align: center; }
-        button, .nav-btn { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; background: var(--primary); color: white; font-weight: bold; margin-right: 10px; transition: all 0.3s ease; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-decoration: none; display: inline-block; }
+        .nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-bottom: 25px; }
+        button, .nav-btn { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; background: var(--primary); color: white; font-weight: bold; transition: all 0.3s ease; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-decoration: none; display: inline-block; }
         button:hover, .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.2); }
-        
-        .date-picker-container { display: flex; justify-content: space-between; align-items: center; background: #e2e8f0; padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; }
+        .date-picker-container { display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #e2e8f0; padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; flex-wrap: wrap; }
         .date-picker-container label { font-weight: bold; color: var(--dark); }
         .date-picker-container input[type="date"] { padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold; outline: none; }
-        
         table { width: 100%; border-collapse: collapse; margin-top: 10px; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 8px rgba(0,0,0,0.1); background: white; }
         th, td { text-align: left; padding: 15px; border-bottom: 1px solid #eee; }
         th { background: var(--primary); color: white; font-weight: bold; }
-        
-        .status-btn-group { display: flex; gap: 10px; }
+        .status-btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
         .status-btn { padding: 6px 14px; border-radius: 6px; border: 2px solid transparent; font-weight: bold; cursor: pointer; background: #e2e8f0; color: #475569; }
         .status-btn.present.active { background: #10b981; color: white; }
         .status-btn.absent.active { background: #ef4444; color: white; }
-
         .save-bar { margin-top: 20px; text-align: right; }
         .save-btn { background: #10b981; font-size: 16px; padding: 14px 28px; }
+        .export-bar { margin-top: 20px; text-align: center; }
+        #btnOverallAttendance { background-color: #107c41; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        @media (max-width: 640px) { .container { padding: 20px 15px; } h2 { font-size: 1.5rem; } .date-picker-container { flex-direction: column; align-items: flex-start; } .save-bar { text-align: center; } }
     </style>
 </head>
 <body>
@@ -65,18 +65,16 @@
     <div class="save-bar">
         <button class="save-btn" onclick="saveAttendance()">Save Attendance</button>
     </div>
-</div>
-<!-- Place this at the bottom of your attendance view/container -->
-<div style="margin-top: 20px; text-align: center;">
-  <button id="btnOverallAttendance" onclick="exportAndSendAttendance()" style="background-color: #107c41; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
-    📊 Overall Attendance (Current Month Excel)
-  </button>
+
+    <div class="export-bar">
+      <button id="btnOverallAttendance" onclick="window.exportAndSendAttendance()">📊 Overall Attendance (Current Month CSV)</button>
+    </div>
 </div>
 
 <!-- Firebase SDKs -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, onSnapshot, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, onSnapshot, doc, setDoc, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyCUxp8HM1zzMc4QhbTRlCf7IE-wfgrsRj8",
@@ -92,27 +90,20 @@
     const db = getFirestore(app);
 
     let students = [];
-    let currentAttendance = {}; // Maps studentId -> 'present' | 'absent'
+    let currentAttendance = {};
 
-    // Set default date input to today (YYYY-MM-DD)
     const dateInput = document.getElementById('attendanceDate');
     const todayStr = new Date().toISOString().split('T')[0];
     dateInput.value = todayStr;
 
-    // Listen for date changes
     dateInput.addEventListener('change', () => loadAttendanceForDate(dateInput.value));
 
-    // Fetch live student data
     onSnapshot(collection(db, "students"), (snapshot) => {
         students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
-        // Sort students alphabetically by name (A-Z)
         students.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-
         loadAttendanceForDate(dateInput.value);
     });
 
-    // Load existing attendance record for selected date
     async function loadAttendanceForDate(dateStr) {
         if (!dateStr) return;
         
@@ -126,7 +117,6 @@
             document.getElementById('dateStatus').innerText = '✓ Record Existing';
             document.getElementById('dateStatus').style.color = '#10b981';
         } else {
-            // Default everyone to present if no record exists yet
             students.forEach(s => currentAttendance[s.id] = 'present');
             document.getElementById('dateStatus').innerText = 'New Record';
             document.getElementById('dateStatus').style.color = '#3b82f6';
@@ -135,7 +125,6 @@
         renderTable();
     }
 
-    // Render table alphabetically
     function renderTable() {
         const tbody = document.getElementById('attendanceListBody');
         tbody.innerHTML = '';
@@ -190,38 +179,58 @@
         }
     };
 
-    async function exportAndSendAttendance() {
-  const btn = document.getElementById('btnOverallAttendance');
-  btn.disabled = true;
-  btn.innerText = "Generating Excel & Sending Mail...";
+    window.exportAndSendAttendance = async () => {
+        const btn = document.getElementById('btnOverallAttendance');
+        btn.disabled = true;
+        btn.innerText = 'Generating CSV...';
 
-  try {
-    // Replace with your backend endpoint or Firebase Cloud Function URL
-    const response = await fetch('/api/attendance/export-monthly', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        recipientEmail: 'shubanshree@gmail.com'
-      })
-    });
+        try {
+            const today = new Date();
+            const year = today.getFullYear();
+            const monthIndex = today.getMonth();
+            const monthDocs = await getDocs(collection(db, 'attendance'));
+            const rows = [['Student Name', 'Belt', 'Date', 'Status']];
 
-    const data = await response.json();
+            monthDocs.docs.forEach(docSnap => {
+                const data = docSnap.data();
+                const attendanceDate = data.date ? new Date(`${data.date}T00:00:00`) : null;
+                if (!attendanceDate || attendanceDate.getFullYear() !== year || attendanceDate.getMonth() !== monthIndex) {
+                    return;
+                }
 
-    if (response.ok && data.success) {
-      alert("✅ Monthly attendance Excel report has been successfully sent to shubanshree@gmail.com!");
-    } else {
-      alert("❌ Failed to send email: " + (data.message || "Unknown error"));
-    }
-  } catch (err) {
-    console.error("Error sending request:", err);
-    alert("❌ Network/Server error while generating report.");
-  } finally {
-    btn.disabled = false;
-    btn.innerText = "📊 Overall Attendance (Current Month Excel)";
-  }
-}
+                const records = data.records || {};
+                Object.entries(records).forEach(([studentId, status]) => {
+                    const student = students.find(item => item.id === studentId) || {};
+                    rows.push([
+                        student.name || studentId,
+                        student.belt || 'N/A',
+                        data.date,
+                        status || 'present'
+                    ]);
+                });
+            });
+
+            if (rows.length === 1) {
+                throw new Error('No attendance records found for the current month.');
+            }
+
+            const csv = rows.map(row => row.map(value => `"${String(value ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `karate-attendance-${year}-${String(monthIndex + 1).padStart(2, '0')}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+            alert('✅ Monthly attendance CSV has been downloaded successfully.');
+        } catch (error) {
+            console.error('Attendance export failed:', error);
+            alert('❌ Could not generate the attendance export. Please try again.');
+        } finally {
+            btn.disabled = false;
+            btn.innerText = '📊 Overall Attendance (Current Month CSV)';
+        }
+    };
 </script>
 </body>
 </html>
