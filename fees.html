@@ -370,14 +370,24 @@
         tbody.innerHTML = '';
         
         let cash = 0, online = 0, master = 0;
+        const seenPayments = new Set();
+        const uniquePayments = payments.filter(p => {
+            if (!p.studentId) return true;
 
-        payments.forEach(p => {
+            const paymentKey = JSON.stringify([p.studentId, p.method, p.amount, p.monthYear]);
+            if (seenPayments.has(paymentKey)) return false;
+
+            seenPayments.add(paymentKey);
+            return true;
+        });
+
+        uniquePayments.forEach(p => {
             if (p.method === 'Cash') cash += p.amount;
             else if (p.method === 'Online') online += p.amount;
             else if (p.method === 'Master') master += p.amount;
         });
 
-        const filteredPayments = payments.filter(p => filterVal === 'All' || p.method === filterVal);
+        const filteredPayments = uniquePayments.filter(p => filterVal === 'All' || p.method === filterVal);
 
         if (filteredPayments.length === 0) {
             tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #64748b;">No ${filterVal === 'All' ? '' : filterVal} payments recorded.</td></tr>`;
